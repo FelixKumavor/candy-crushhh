@@ -1,0 +1,156 @@
+"use client"
+
+import { useState, useEffect } from 'react'
+import { Button } from "@/components/ui/button"
+
+const BOARD_SIZE = 8
+const CANDY_COLORS = ['red', 'blue', 'green', 'yellow', 'purple']
+
+type Candy = {
+  color: string
+  id: number
+}
+
+export default function CandyCrushClone() {
+  const [board, setBoard] = useState<Candy[][]>([])
+  const [selectedCandy, setSelectedCandy] = useState<{ row: number; col: number } | null>(null)
+  const [score, setScore] = useState(0)
+
+  useEffect(() => {
+    initializeBoard()
+  }, [])
+
+  const initializeBoard = () => {
+    const newBoard = Array(BOARD_SIZE).fill(null).map(() =>
+      Array(BOARD_SIZE).fill(null).map(() => ({
+        color: CANDY_COLORS[Math.floor(Math.random() * CANDY_COLORS.length)],
+        id: Math.random()
+      }))
+    )
+    setBoard(newBoard)
+  }
+
+  const handleCandyClick = (row: number, col: number) => {
+    if (!selectedCandy) {
+      setSelectedCandy({ row, col })
+    } else {
+      if (isAdjacent(selectedCandy, { row, col })) {
+        swapCandies(selectedCandy, { row, col })
+        setSelectedCandy(null)
+      } else {
+        setSelectedCandy({ row, col })
+      }
+    }
+  }
+
+  const isAdjacent = (candy1: { row: number; col: number }, candy2: { row: number; col: number }) => {
+    const rowDiff = Math.abs(candy1.row - candy2.row)
+    const colDiff = Math.abs(candy1.col - candy2.col)
+    return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1)
+  }
+
+  const swapCandies = (candy1: { row: number; col: number }, candy2: { row: number; col: number }) => {
+    const newBoard = [...board]
+    const temp = newBoard[candy1.row][candy1.col]
+    newBoard[candy1.row][candy1.col] = newBoard[candy2.row][candy2.col]
+    newBoard[candy2.row][candy2.col] = temp
+    setBoard(newBoard)
+
+    checkForMatches()
+  }
+
+  const checkForMatches = () => {
+    let matchFound = false
+    const newBoard = [...board]
+
+    // Check horizontal matches
+    for (let row = 0; row < BOARD_SIZE; row++) {
+      for (let col = 0; col < BOARD_SIZE - 2; col++) {
+        if (
+          newBoard[row][col].color === newBoard[row][col + 1].color &&
+          newBoard[row][col].color === newBoard[row][col + 2].color
+        ) {
+          newBoard[row][col].color = ''
+          newBoard[row][col + 1].color = ''
+          newBoard[row][col + 2].color = ''
+          matchFound = true
+          setScore(prevScore => prevScore + 30)
+        }
+      }
+    }
+
+    // Check vertical matches
+    for (let row = 0; row < BOARD_SIZE - 2; row++) {
+      for (let col = 0; col < BOARD_SIZE; col++) {
+        if (
+          newBoard[row][col].color === newBoard[row + 1][col].color &&
+          newBoard[row][col].color === newBoard[row + 2][col].color
+        ) {
+          newBoard[row][col].color = ''
+          newBoard[row + 1][col].color = ''
+          newBoard[row + 2][col].color = ''
+          matchFound = true
+          setScore(prevScore => prevScore + 30)
+        }
+      }
+    }
+
+    if (matchFound) {
+      setBoard(newBoard)
+      setTimeout(() => {
+        refillBoard()
+      }, 300)
+    }
+  }
+
+  const refillBoard = () => {
+    const newBoard = [...board]
+    for (let col = 0; col < BOARD_SIZE; col++) {
+      let emptySpaces = 0
+      for (let row = BOARD_SIZE - 1; row >= 0; row--) {
+        if (newBoard[row][col].color === '') {
+          emptySpaces++
+        } else if (emptySpaces > 0) {
+          newBoard[row + emptySpaces][col] = newBoard[row][col]
+          newBoard[row][col] = { color: '', id: Math.random() }
+        }
+      }
+      for (let row = 0; row < emptySpaces; row++) {
+        newBoard[row][col] = {
+          color: CANDY_COLORS[Math.floor(Math.random() * CANDY_COLORS.length)],
+          id: Math.random()
+        }
+      }
+    }
+    setBoard(newBoard)
+    checkForMatches()
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
+      <h1 className="text-4xl font-bold mb-4">Candy Crush Clone</h1>
+      <div className="mb-4">Score: {score}</div>
+      <div className="bg-white p-4 rounded-lg shadow-lg">
+        {board.map((row, rowIndex) => (
+          <div key={rowIndex} className="flex">
+            {row.map((candy, colIndex) => (
+              <div
+                key={candy.id}
+                className={`w-12 h-12 m-1 rounded-full cursor-pointer transition-all duration-300 ${
+                  selectedCandy?.row === rowIndex && selectedCandy?.col === colIndex
+                    ? 'ring-4 ring-blue-500'
+                    : ''
+                }`}
+                style={{ backgroundColor: candy.color }}
+                onClick={() => handleCandyClick(rowIndex, colIndex)}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+      <Button className="mt-4" onClick={initializeBoard}>
+        Reset Game
+      </Button>
+    </div>
+  )
+}
